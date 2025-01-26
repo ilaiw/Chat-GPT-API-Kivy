@@ -6,16 +6,14 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.popup import Popup
-from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from openai import OpenAI
-from kivy.uix.scrollview import ScrollView
 from kivy.clock import mainthread
 from bidi.algorithm import get_display
 import subprocess
 import os
 import webbrowser
-from kivy.uix.togglebutton import ToggleButton  # Import ToggleButton
+from kivy.uix.togglebutton import ToggleButton
 
 
 def convert_markdown_to_output(input_text, output_format):
@@ -108,25 +106,17 @@ class AIChatApp(App):
         else:
             self.client = None
 
-        self.input_text = TextInput(hint_text="Enter your message here", size_hint=(1, 0.2),  font_size=24,
+        self.input_text = TextInput(hint_text="Enter your message here", size_hint=(1, 0.9),  font_size=24,
                                     font_name='DejaVuSans.ttf',)
         mainlayout.add_widget(self.input_text)
 
-        # Label to show response
-        scrollview = ScrollView(size_hint=(1, 1), do_scroll_x=False, do_scroll_y=True, scroll_type=['bars'])
-        self.response_label = TextInput(
-            text="", size_hint_y=None, height='1000dp', readonly=True, multiline=True, font_size=24,
-            cursor_blink=True, font_name='DejaVuSans.ttf',
-        )
-
-        scrollview.add_widget(self.response_label)
-        mainlayout.add_widget(scrollview)
+        # list some basic models in case we can't load the models from API.
+        available_models = ['gpt-3.5-turbo', 'chatgpt-4o-latest', 'gpt-4o', 'gpt-4-turbo', 'gpt-4o-mini',
+                            'dall-e-2', 'dall-e-3', 'o1-mini', 'o1-preview']
         try:
             available_models = sorted([str(m.id) for m in self.client.models.list()])
-            self.response_label.text = 'OpenAI API connection established successfully.'
         except Exception as e:
-            self.response_label.text = 'Error connecting to OpenAI. Check your API key.\n'+ help_msg + '\n' + str(e)
-            available_models = ['chatgpt-4o-latest', 'gpt-4o', 'gpt-4o-mini', 'gpt-4', 'dall-e-2', 'dall-e-3']
+            self.input_text.text = 'Error connecting to OpenAI. Check your API key.\n'+ help_msg + '\n' + str(e)
 
         # Keyboard: Allow message send with shift+enter
         def _on_keyboard(instance, key, scancode, codepoint, modifiers):
@@ -136,11 +126,9 @@ class AIChatApp(App):
         Window.bind(on_keyboard=_on_keyboard)
 
         # Buttons:
-        buttons_size = (0.5, 0.5)
-        button_layout = BoxLayout(size_hint=(1, 0.3))
+        button_layout = BoxLayout(size_hint=(1, 0.1))
 
         # Spinner for model selection.
-        models = ('gpt-4o', 'gpt-4-turbo', 'chatgpt-4o-latest', 'gpt-3.5-turbo', 'gpt-4')
         self.model_spinner = Spinner(
             text='chatgpt-4o-latest',
             values=available_models,
@@ -152,28 +140,19 @@ class AIChatApp(App):
         self.send_button = Button(text='Send\n(Shift+Enter)')
         self.send_button.bind(on_press=lambda instance: self.send_message())
         button_layout.add_widget(self.send_button)
-
-        # Button to load API Key
         load_api_key_button = Button(text='Load API Key')
         load_api_key_button.bind(on_release=self.show_api_key_popup)
         button_layout.add_widget(load_api_key_button)
-
-        # Toggle button to enable/disable Markdown conversion
         self.toggle_button = ToggleButton(text="HTML", state="down")
         button_layout.add_widget(self.toggle_button)
-
-        # mainlayout.add_widget(button_layout)
-
-        # Buttons row 2
-        # button_layout = BoxLayout(size_hint=buttons_size)
         self.type_spinner = Spinner(text='Text', values=['Text', 'Image'])
         button_layout.add_widget(self.type_spinner)
         self.image_size_spinner = Spinner(text="1024x1024", values=["1024x1024", "1024x1792", "1792x1024"])
         button_layout.add_widget(self.image_size_spinner)
         self.image_quality_spinner = Spinner(text='standard',values=['standard', 'hd'])
         button_layout.add_widget(self.image_quality_spinner)
-        mainlayout.add_widget(button_layout)
 
+        mainlayout.add_widget(button_layout)
 
         # Add the loading popup
         self.loading_popup = self.create_loading_popup()
@@ -194,7 +173,7 @@ class AIChatApp(App):
     def set_api_key(self, api_key):
         self.api_key = api_key
         if not api_key:
-            self.response_label.text = "API key empty. Please load an API key.\n" + help_msg
+            self.input_text.text = "API key empty. Please load an API key.\n" + help_msg
             self.client = None
             return
         print(f"API key set: {self.api_key}")
@@ -204,13 +183,12 @@ class AIChatApp(App):
 
     def send_message(self):
         if self.client is None:
-            self.response_label.text = "Please load an API key.\n" + help_msg
+            self.input_text.text = "Please load an API key.\n" + help_msg
             return
 
         message = self.input_text.text
 
         if not message:  # Don't send empty message
-            self.response_label.text = ''
             return
 
         selected_model = self.model_spinner.text
@@ -231,7 +209,6 @@ class AIChatApp(App):
     def update_response(self, response):
         self.loading_popup.dismiss()
         response = get_display(response)  # Hebrew Arabic support
-        self.response_label.text = response
 
         if self.toggle_button.state == "down":  # Only convert if the toggle is "down"
             convert_markdown_to_output(response, "html")
