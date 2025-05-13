@@ -115,6 +115,22 @@ class AIChatApp(App):
                             'dall-e-2', 'dall-e-3', 'o1-mini', 'o1-preview']
         try:
             available_models = sorted([str(m.id) for m in self.client.models.list()])
+
+            models_tts = [m for m in available_models if 'tts' in m]
+            models_audio = [m for m in available_models if 'audio' in m]
+            models_embedding = [m for m in available_models if 'embedding' in m]
+            models_4 = [m for m in available_models if 'gpt-4-' in m]
+            models_4o = [m for m in available_models if 'gpt-4o' in m]
+            models_35 = [m for m in available_models if 'gpt-3.5' in m]
+            models_moderation = [m for m in available_models if 'moderation' in m]
+            models_o1 = [m for m in available_models if 'o1' in m]
+
+            models_rest = [m for m in available_models if m not in (
+                    models_tts + models_audio + models_embedding + models_4 + models_4o + models_35 +
+                    models_moderation + models_o1)]
+
+            available_models = models_o1 + models_4o + models_rest
+
         except Exception as e:
             self.input_text.text = 'Error connecting to OpenAI. Check your API key.\n'+ help_msg + '\n' + str(e)
 
@@ -214,23 +230,16 @@ class AIChatApp(App):
             convert_markdown_to_output(response, "html")
         else:
             print("Skipping Markdown to HTML conversion.")
+
     def call_ai_api(self, message, model):
         try:
-            if self.type_spinner.text == 'Text':
-
-                completion = self.client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": message}])
-                data = completion.model_dump()
-                response = data['choices'][0]['message']['content']
-                return response
-            elif self.type_spinner.text == 'Image':
-                response = self.client.images.generate(model=model, prompt=message,
-                    size=self.image_size_spinner.text,
-                    quality=self.image_quality_spinner.text,
-                    n=1,)
-                image_url = response.data[0].url
-                return image_url
+            # Use chat completions
+            completion = self.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": message}]
+            )
+            response = completion.model_dump()['choices'][0]['message']['content']
+            return response
 
         except Exception as e:
             return str(e)
